@@ -1,0 +1,247 @@
+@page "/forecast"
+@using BlazorApp1.Models
+@using BlazorApp1.Services
+@inject IForecastService ForecastService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>7-Day Weather Forecast</PageTitle>
+
+<h1>7-Day Weather Forecast</h1>
+
+<div class="forecast-container">
+    <div class="search-section mb-4">
+        <div class="input-group">
+            <input @bind="_cityName" @onkeypress="HandleKeyPress" type="text" class="form-control" placeholder="Enter city name" />
+            <button @onclick="GetForecast" class="btn btn-primary" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span class="ms-2">Loading...</span>
+                }
+                else
+                {
+                    <span>Get Forecast</span>
+                }
+            </button>
+        </div>
+    </div>
+
+    @if (_forecast != null)
+    {
+        <div class="forecast-header mb-4">
+            <h2>@_forecast.City, @_forecast.Country</h2>
+        </div>
+
+        <!-- Temperature Chart -->
+        <div class="chart-container mb-4">
+            <h3>Temperature Forecast (°F)</h3>
+            <canvas id="temperatureChart" width="800" height="400"></canvas>
+        </div>
+
+        <!-- Humidity Chart -->
+        <div class="chart-container mb-4">
+            <h3>Humidity Forecast (%)</h3>
+            <canvas id="humidityChart" width="800" height="300"></canvas>
+        </div>
+
+        <!-- UV Index Chart -->
+        <div class="chart-container mb-4">
+            <h3>UV Index Forecast</h3>
+            <canvas id="uvChart" width="800" height="300"></canvas>
+        </div>
+
+        <!-- Wind Speed Chart -->
+        <div class="chart-container mb-4">
+            <h3>Wind Speed Forecast (mph)</h3>
+            <canvas id="windChart" width="800" height="300"></canvas>
+        </div>
+
+        <!-- Daily Cards with Icons -->
+        <div class="daily-forecast-cards">
+            <h3>Daily Summary</h3>
+            <div class="row">
+                @foreach (var day in _forecast.Daily)
+                {
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">@day.Date.ToString("dddd, MMM dd")</h5>
+                                @if (day.Weather.Length > 0)
+                                {
+                                    <img src="@($"https://openweathermap.org/img/wn/{day.Weather[0].Icon}@2x.png")" 
+                                         alt="@day.Weather[0].Description" 
+                                         class="weather-icon mb-2" />
+                                    <p class="weather-description">@day.Weather[0].Description</p>
+                                }
+                                <div class="temperature-info">
+                                    <div class="temp-range">
+                                        <span class="high-temp">@Math.Round(day.Temp.Max)°</span>
+                                        <span class="low-temp">@Math.Round(day.Temp.Min)°</span>
+                                    </div>
+                                </div>
+                                <div class="weather-details mt-2">
+                                    <small class="text-muted">
+                                        <div>Humidity: @day.Humidity%</div>
+                                        <div>UV Index: @Math.Round(day.UvIndex, 1)</div>
+                                        <div>Wind: @Math.Round(day.WindSpeed, 1) mph</div>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger mt-3" role="alert">
+            @_errorMessage
+        </div>
+    }
+</div>
+
+<style>
+    .forecast-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .chart-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .weather-icon {
+        width: 80px;
+        height: 80px;
+    }
+
+    .temperature-info {
+        margin: 10px 0;
+    }
+
+    .temp-range {
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+
+    .high-temp {
+        color: #d32f2f;
+        margin-right: 10px;
+    }
+
+    .low-temp {
+        color: #1976d2;
+    }
+
+    .weather-description {
+        font-style: italic;
+        color: #666;
+        text-transform: capitalize;
+    }
+
+    .weather-details {
+        font-size: 0.9em;
+    }
+
+    .input-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .input-group input {
+        flex: 1;
+    }
+
+    canvas {
+        max-width: 100%;
+        height: auto;
+    }
+</style>
+
+@code {
+    private string _cityName = "London";
+    private ForecastResponse? _forecast;
+    private string _errorMessage = string.Empty;
+    private bool _isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetForecast();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_forecast != null)
+        {
+            await CreateCharts();
+        }
+    }
+
+    private async Task GetForecast()
+    {
+        if (string.IsNullOrWhiteSpace(_cityName))
+        {
+            _errorMessage = "Please enter a city name";
+            return;
+        }
+
+        _isLoading = true;
+        _errorMessage = string.Empty;
+        _forecast = null;
+
+        try
+        {
+            _forecast = await ForecastService.GetSevenDayForecastAsync(_cityName.Trim());
+            
+            if (_forecast == null)
+            {
+                _errorMessage = "City not found or API error occurred";
+                return;
+            }
+
+            StateHasChanged();
+            await CreateCharts();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error fetching forecast data: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateCharts()
+    {
+        if (_forecast?.Daily == null || !_forecast.Daily.Any())
+            return;
+
+        var labels = _forecast.Daily.Select(d => d.Date.ToString("MMM dd")).ToArray();
+        var temperatures = _forecast.Daily.Select(d => d.Temp.Day).ToArray();
+        var maxTemps = _forecast.Daily.Select(d => d.Temp.Max).ToArray();
+        var minTemps = _forecast.Daily.Select(d => d.Temp.Min).ToArray();
+        var humidity = _forecast.Daily.Select(d => d.Humidity).ToArray();
+        var uvIndex = _forecast.Daily.Select(d => d.UvIndex).ToArray();
+        var windSpeed = _forecast.Daily.Select(d => d.WindSpeed).ToArray();
+
+        await JSRuntime.InvokeVoidAsync("createTemperatureChart", labels, temperatures, maxTemps, minTemps);
+        await JSRuntime.InvokeVoidAsync("createHumidityChart", labels, humidity);
+        await JSRuntime.InvokeVoidAsync("createUvChart", labels, uvIndex);
+        await JSRuntime.InvokeVoidAsync("createWindChart", labels, windSpeed);
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await GetForecast();
+        }
+    }
+}

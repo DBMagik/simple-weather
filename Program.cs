@@ -9,6 +9,8 @@ builder.Services.AddRazorComponents()
 builder.Services.AddHttpClient();
 
 builder.Services.AddScoped<IWeatherService, WeatherService>();
+builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+builder.Services.AddScoped<IForecastService, ForecastService>();
 
 var app = builder.Build();
 

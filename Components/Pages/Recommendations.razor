@@ -1,0 +1,171 @@
+// BlazorApp1/Components/Pages/Recommendations.razor
+@page "/recommendations"
+@using BlazorApp1.Models
+@using BlazorApp1.Services
+@inject IWeatherService WeatherService
+@inject IRecommendationService RecommendationService
+@rendermode InteractiveServer
+
+
+<PageTitle>Weather Recommendations</PageTitle>
+
+
+<h1>Weather Recommendations</h1>
+
+
+<div class="recommendations-container">
+    <div class="search-section mb-4">
+        <div class="input-group">
+            <input @bind="_cityName" @onkeypress="HandleKeyPress" type="text" class="form-control" placeholder="Enter city name" />
+            <button @onclick="GetRecommendations" class="btn btn-primary" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span class="ms-2">Loading...</span>
+                }
+                else
+                {
+                    <span>Get Recommendations</span>
+                }
+            </button>
+        </div>
+    </div>
+
+
+    @if (_weather != null)
+    {
+        <div class="weather-summary card mb-4">
+            <div class="card-body">
+                <h2 class="card-title">Current Weather in @_weather.Name</h2>
+                <div class="d-flex align-items-center">
+                    @if (_weather.Weather?.Length > 0)
+                    {
+                        <img src="@($"https://openweathermap.org/img/wn/{_weather.Weather[0].Icon}@2x.png")" alt="Weather icon" class="weather-icon me-3" />
+                    }
+                    <div>
+                        <p class="mb-1"><strong>Temperature:</strong> @Math.Round(_weather.Main?.Temp ?? 0)°F</p>
+                        @if (_weather.Weather?.Length > 0)
+                        {
+                            <p class="mb-1"><strong>Conditions:</strong> @_weather.Weather[0].Description</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        @if (_recommendations.Any())
+        {
+            <h3>Recommended Activities</h3>
+            <div class="row">
+                @foreach (var recommendation in _recommendations)
+                {
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">@recommendation.Description</h5>
+                                <p class="card-text">@recommendation.Activity</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger mt-3" role="alert">
+            @_errorMessage
+        </div>
+    }
+</div>
+
+
+<style>
+    .recommendations-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+
+    .weather-icon {
+        width: 60px;
+        height: 60px;
+    }
+
+
+    .input-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+
+    .input-group input {
+        flex: 1;
+    }
+</style>
+
+
+@code {
+    private string _cityName = "London";
+    private WeatherResponse? _weather;
+    private List<WeatherRecommendation> _recommendations = new();
+    private string _errorMessage = string.Empty;
+    private bool _isLoading;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetRecommendations();
+    }
+
+
+    private async Task GetRecommendations()
+    {
+        if (string.IsNullOrWhiteSpace(_cityName))
+        {
+            _errorMessage = "Please enter a city name";
+            return;
+        }
+
+
+        _isLoading = true;
+        _errorMessage = string.Empty;
+        _weather = null;
+        _recommendations.Clear();
+
+
+        try
+        {
+            _weather = await WeatherService.GetWeatherAsync(_cityName.Trim());
+            
+            if (_weather == null)
+            {
+                _errorMessage = "City not found or API error occurred";
+                return;
+            }
+
+
+            _recommendations = RecommendationService.GetRecommendations(_weather);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error fetching data: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await GetRecommendations();
+        }
+    }
+}
