@@ -1,0 +1,190 @@
+@page "/"
+@page "/weather"
+@using BlazorApp1.Models
+@using BlazorApp1.Services
+@inject IWeatherService WeatherService
+@rendermode InteractiveServer
+
+
+<PageTitle>Weather</PageTitle>
+
+<h1>Weather App</h1>
+
+<div class="weather-container">
+    <div class="search-section">
+        <div class="input-group">
+            <input @bind="_cityName" @onkeypress="HandleKeyPress" type="text" class="form-control" placeholder="Enter city name" />
+            <button @onclick="GetWeather" class="btn btn-primary" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span class="ms-2">Loading...</span>
+                }
+                else
+                {
+                    <span>Get Weather</span>
+                }
+            </button>
+        </div>
+    </div>
+
+    @if (_weather != null)
+    {
+        <div class="weather-card mt-4">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">@_weather.Name, @_weather.Sys?.Country</h2>
+                    <div class="weather-main">
+                        @if (_weather.Weather?.Length > 0)
+                        {
+                            <img src="@($"https://openweathermap.org/img/wn/{_weather.Weather[0].Icon}@2x.png")" alt="Weather icon" class="weather-icon" />
+                        }
+                        <div class="temperature">@Math.Round(_weather.Main?.Temp ?? 0)°F</div>
+                    </div>
+                    @if (_weather.Weather?.Length > 0)
+                    {
+                        <p class="weather-description">@_weather.Weather[0].Description</p>
+                    }
+                    
+                    <div class="weather-details">
+                        <div class="detail-item">
+                            <strong>Feels like:</strong> @Math.Round(_weather.Main?.FeelsLike ?? 0)°F
+                        </div>
+                        <div class="detail-item">
+                            <strong>Min/Max:</strong> @Math.Round(_weather.Main?.TempMin ?? 0)°F / @Math.Round(_weather.Main?.TempMax ?? 0)°F
+                        </div>
+                        <div class="detail-item">
+                            <strong>Humidity:</strong> @(_weather.Main?.Humidity ?? 0)%
+                        </div>
+                        <div class="detail-item">
+                            <strong>Pressure:</strong> @(_weather.Main?.Pressure ?? 0) hPa
+                        </div>
+                        @if (_weather.Wind != null)
+                        {
+                            <div class="detail-item">
+                                <strong>Wind Speed:</strong> @Math.Round(_weather.Wind.Speed) m/s
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger mt-3" role="alert">
+            @_errorMessage
+        </div>
+    }
+</div>
+
+<style>
+    .weather-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .weather-card {
+        text-align: center;
+    }
+
+    .weather-main {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .temperature {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #007bff;
+    }
+
+    .weather-icon {
+        width: 100px;
+        height: 100px;
+    }
+
+    .weather-description {
+        font-size: 1.2rem;
+        text-transform: capitalize;
+        color: #6c757d;
+    }
+
+    .weather-details {
+        margin-top: 1.5rem;
+        text-align: left;
+    }
+
+    .detail-item {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+
+    .input-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .input-group input {
+        flex: 1;
+    }
+</style>
+
+@code {
+    private string _cityName = "London";
+    private WeatherResponse? _weather;
+    private string _errorMessage = string.Empty;
+    private bool _isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetWeather();
+    }
+
+    private async Task GetWeather()
+    {
+        if (string.IsNullOrWhiteSpace(_cityName))
+        {
+            _errorMessage = "Please enter a city name";
+            return;
+        }
+
+        _isLoading = true;
+        _errorMessage = string.Empty;
+        _weather = null;
+
+        try
+        {
+            _weather = await WeatherService.GetWeatherAsync(_cityName.Trim());
+            
+            if (_weather == null)
+            {
+                _errorMessage = "City not found or API error occurred";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error fetching weather data: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await GetWeather();
+        }
+    }
+}

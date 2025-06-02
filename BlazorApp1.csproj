@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>dc69abff-6662-4744-a2a7-8077c700f4ab</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Folder Include="Services\" />
+    </ItemGroup>
+
+</Project>
