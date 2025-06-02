@@ -1,3 +1,5 @@
+# DA Response was great with no failures (Will try to cause failures in the future, just needed to build a codebase in C# first)
+
 # Blazor Weather App
 
 A simple weather application built with Blazor Server that displays current weather information using the OpenWeatherMap API.

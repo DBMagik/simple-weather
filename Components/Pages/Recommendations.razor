@@ -1,0 +1,157 @@
+@page "/Recommendations"
+@using BlazorApp1.Models
+@using BlazorApp1.Services
+@inject IWeatherService WeatherService
+@inject IRecommendationService RecommendationService
+@rendermode InteractiveServer
+
+
+<PageTitle>Recommendations</PageTitle>
+
+
+<h1>Weather-Based Recommendations</h1>
+
+
+<div class="recommendations-container">
+    <div class="search-section">
+        <div class="input-group">
+            <input @bind="_cityName" @onkeypress="HandleKeyPress" type="text" class="form-control" placeholder="Enter city name" />
+            <button @onclick="GetRecommendations" class="btn btn-primary" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span class="ms-2">Loading...</span>
+                }
+                else
+                {
+                    <span>Get Recommendations</span>
+                }
+            </button>
+        </div>
+    </div>
+
+
+    @if (_recommendations.Any())
+    {
+        <div class="recommendations-list mt-4">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Recommendations for @_weather?.Name</h2>
+                    <ul>
+                        @foreach (var rec in _recommendations)
+                        {
+                            <li>@rec</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    }
+
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger mt-3" role="alert">
+            @_errorMessage
+        </div>
+    }
+</div>
+
+
+<style>
+    /* Reusing and adapting styles from Weather.razor for consistency */
+    .recommendations-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+
+    .recommendations-list {
+        text-align: left;
+    }
+
+
+    .recommendations-list ul {
+        list-style-type: disc;
+        padding-left: 1.5rem;
+    }
+
+
+    .recommendations-list li {
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+
+    .input-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+
+    .input-group input {
+        flex: 1;
+    }
+</style>
+
+
+@code {
+    private string _cityName = "London";
+    private WeatherResponse? _weather;
+    private List<string> _recommendations = new();
+    private string _errorMessage = string.Empty;
+    private bool _isLoading;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetRecommendations();
+    }
+
+
+    private async Task GetRecommendations()
+    {
+        if (string.IsNullOrWhiteSpace(_cityName))
+        {
+            _errorMessage = "Please enter a city name";
+            return;
+        }
+
+
+        _isLoading = true;
+        _errorMessage = string.Empty;
+        _recommendations = new List<string>();
+        _weather = null;
+
+
+        try
+        {
+            _weather = await WeatherService.GetWeatherAsync(_cityName.Trim());
+            if (_weather != null)
+            {
+                _recommendations = RecommendationService.GetRecommendations(_weather);
+            }
+            else
+            {
+                _errorMessage = "City not found or API error occurred";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error fetching data: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await GetRecommendations();
+        }
+    }
+}

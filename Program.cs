@@ -10,6 +10,9 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddScoped<IWeatherService, WeatherService>();
 
+// Add registration for the new recommendation service to enable dependency injection
+builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
